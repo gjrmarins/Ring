@@ -1,8 +1,17 @@
 import React, { useState } from "react";
 
+
 const SmokeQualityApp = () => {
   const [photo, setPhoto] = useState(null);
   const [data, setData] = useState([]);
+  const [plate, setPlate] = useState("");
+  const [equipmentType, setEquipmentType] = useState("");
+
+  const handlePlateChange = (e) => {
+    let value = e.target.value.toUpperCase(); // Converte para maiúsculas
+    value = value.replace(/[^A-Z0-9-]/g, ""); // Permite apenas letras, números e '-'
+    setPlate(value);
+  };
 
   const analyzeSmokeQuality = async (file) => {
     return new Promise((resolve) => {
@@ -16,7 +25,7 @@ const SmokeQualityApp = () => {
           canvas.width = img.width;
           canvas.height = img.height;
           ctx.drawImage(img, 0, 0, img.width, img.height);
-          
+
           const imageData = ctx.getImageData(0, 0, img.width, img.height);
           const pixels = imageData.data;
           let totalLuminance = 0;
@@ -54,39 +63,74 @@ const SmokeQualityApp = () => {
 
   const handlePhotoUpload = async (event) => {
     const file = event.target.files[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setPhoto(imageUrl);
-      const evaluatedQuality = await analyzeSmokeQuality(file);
-      setData([...data, { id: data.length + 1, quality: evaluatedQuality.description, level: evaluatedQuality.level, photo: imageUrl }]);
+    if (!file || !file.type.startsWith("image/")) {
+      alert("Por favor, envie um arquivo de imagem válido.");
+      return;
     }
+    
+    const timestamp = Date.now();
+    const uniqueFile = new File([file], `${file.name.split(".")[0]}_${timestamp}.${file.name.split(".").pop()}`, { type: file.type });
+    
+    const tempUrl = URL.createObjectURL(uniqueFile);
+    setTimeout(() => {
+      setPhoto(tempUrl);
+    }, 100);
+    
+    const evaluatedQuality = await analyzeSmokeQuality(file);
+    setData([...data, {
+      id: data.length + 1,
+      plate,
+      equipmentType,
+      quality: evaluatedQuality.description,
+      level: evaluatedQuality.level,
+      photo: tempUrl 
+    }]);
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
-      <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-lg">
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-4">Análise de Fumaça - Escala de Ringelmann</h1>
+    <div className="container d-flex flex-column align-items-center justify-content-center min-vh-100 bg-light p-4">
+      <div className="text-center mb-4">
+        <img src="/logo.png" alt="Logo" width="150" height="150" />
+      </div>
+      <div className="card shadow-lg p-4 w-50 text-center">
+        <h2 style={{ color: "#4D9354" }} className="mb-4">Adicionar registro</h2>
+        <input
+          type="text"
+          placeholder="Placa"
+          value={plate}
+          onChange={handlePlateChange}
+          className="form-control mb-3"
+        />
+        <select
+          className="form-control mb-3"
+          value={equipmentType}
+          onChange={(e) => setEquipmentType(e.target.value)}
+        >
+          <option value="">Selecione o tipo do equipamento</option>
+          <option value="veiculo">Veículo</option>
+          <option value="estacionaria">Estacionária</option>
+        </select>
         <input
           type="file"
           accept="image/*"
           onChange={handlePhotoUpload}
-          className="block w-full text-gray-700 py-2 px-4 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring focus:border-blue-300 mb-4"
+          className="form-control mb-3"
         />
         {photo && (
-          <div className="flex justify-center mb-4">
-            <img src={photo} alt="Preview" className="w-64 h-auto rounded-md shadow-md" />
+          <div className="text-center mb-3">
+            <img src={photo} alt="Preview" className="img-fluid rounded" style={{ maxHeight: "300px" }} />
           </div>
         )}
-      </div>
-      <div className="mt-6 w-full max-w-lg bg-white shadow-lg rounded-lg p-6">
-        <h2 className="text-2xl font-semibold text-gray-800 text-center mb-4">Registros</h2>
-        <ul className="space-y-4">
+      </div>      
+      <div className="card shadow-lg p-4 mt-4 w-50">
+        <h2 className="text-secondary text-center mb-4">Histórico</h2>
+        <ul className="list-group">
           {data.map((entry) => (
-            <li key={entry.id} className="border p-4 rounded-lg shadow-md bg-gray-50">
-              <p className="text-lg font-semibold text-gray-700">Nível {entry.level}: {entry.quality}</p>
-              <div className="flex justify-center mt-2">
-                <img src={entry.photo} alt="Registro" className="w-64 h-auto rounded-md shadow-sm" />
-              </div>
+            <li key={entry.id} className="list-group-item d-flex flex-column align-items-center">
+              <p className="fw-bold text-dark">Placa: </p> {entry.plate}
+              <p className="fw-bold text-dark">Tipo de Equipamento: {entry.equipmentType}</p>
+              <p className="fw-bold text-dark">Nível {entry.level}: {entry.quality}</p>
+              <img src={entry.photo} alt="Registro" className="img-thumbnail" style={{ maxHeight: "200px" }} />
             </li>
           ))}
         </ul>
